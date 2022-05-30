@@ -4,7 +4,7 @@ export class Slide {
   constructor(slide, wrapper) {
     this.slide = document.querySelector(slide);
     this.wrapper = document.querySelector(wrapper);
-    this.dist = { finalPosition: 0, startX: 0, movement: 0 };
+    this.distance = { finalPosition: 0, startX: 0, movement: 0 };
     this.activeClass = 'active';
     this.changeEvent = new Event('changeEvent');
   }
@@ -13,26 +13,23 @@ export class Slide {
     this.slide.style.transition = active ? 'transform .3s' : '';
   }
 
-  moveSlide(distX) {
-    this.dist.movePosition = distX;
-    this.slide.style.transform = `translate3d(${distX}px, 0, 0)`;
+  moveSlide(distanceX) {
+    this.distance.movePosition = distanceX;
+    this.slide.style.transform = `translate3d(${distanceX}px, 0, 0)`;
   }
 
   updatePosition(clientX) {
-    this.dist.movement = (this.dist.startX - clientX) * 1.6;
-    return this.dist.finalPosition - this.dist.movement;
+    this.distance.movement = (this.distance.startX - clientX) * 1.6;
+    return this.distance.finalPosition - this.distance.movement;
   }
 
   onStart(event) {
-    let movetype;
+    const movetype = (event.type === 'mousedown') ? 'mousemove' : 'touchmove';
+    const pointerPosition = (event.type === 'mousedown') ? event.clientX : event.changedTouches[0].clientX;
     if (event.type === 'mousedown') {
       event.preventDefault();
-      this.dist.startX = event.clientX;
-      movetype = 'mousemove';
-    } else {
-      this.dist.startX = event.changedTouches[0].clientX;
-      movetype = 'touchmove';
     }
+    this.distance.startX = pointerPosition;
     this.wrapper.addEventListener(movetype, this.onMove);
     this.transition(false);
   }
@@ -46,19 +43,35 @@ export class Slide {
   onEnd(event) {
     const movetype = (event.type === 'mouseup') ? 'mousemove' : 'touchmove';
     this.wrapper.removeEventListener(movetype, this.onMove);
-    this.dist.finalPosition = this.dist.movePosition;
+    this.distance.finalPosition = this.distance.movePosition;
     this.transition(true);
-    this.changeSlideOnEnd();
+    this.changeSlideOnEnd(event);
   }
 
-  changeSlideOnEnd() {
-    if (this.dist.movement > 120 && this.index.next !== undefined) {
-      this.activeNextSlide();
-    } else if (this.dist.movement < -120 && this.index.prev !== undefined) {
+  onClick(event) {
+    const pointerPosition = (event.type === 'mouseup') ? event.clientX : event.changedTouches[0].clientX;
+    const slide = this.slideArray[this.index.active];
+    console.log(pointerPosition);
+    console.log(this.slideArray[this.index.active]);
+    if (pointerPosition < slide.element.getBoundingClientRect().left) {
       this.activePrevSlide();
+    } else if (pointerPosition > slide.element.getBoundingClientRect().right) {
+      this.activeNextSlide();
+    }
+  }
+
+  changeSlideOnEnd(event) {
+    console.log(this.distance.movement);
+    if (this.distance.movement > 120 && this.index.next !== undefined) {
+      this.activeNextSlide();
+    } else if (this.distance.movement < -120 && this.index.prev !== undefined) {
+      this.activePrevSlide();
+    } else if (this.distance.movement === 0) {
+      this.onClick(event);
     } else {
       this.changeSlide(this.index.active);
     }
+    this.distance.movement = 0;
   }
 
   addSlideEvents() {
@@ -67,8 +80,6 @@ export class Slide {
     this.wrapper.addEventListener('mouseup', this.onEnd);
     this.wrapper.addEventListener('touchend', this.onEnd);
   }
-
-  // Slides config
 
   slidePosition(slide) {
     const margin = (this.wrapper.offsetWidth - slide.offsetWidth) / 2;
@@ -95,7 +106,7 @@ export class Slide {
     const activeSlide = this.slideArray[index];
     this.moveSlide(activeSlide.position);
     this.slidesIndexNav(index);
-    this.dist.finalPosition = activeSlide.position;
+    this.distance.finalPosition = activeSlide.position;
     this.changeActiveClass();
     this.wrapper.dispatchEvent(this.changeEvent);
   }
@@ -128,6 +139,7 @@ export class Slide {
     this.onStart = this.onStart.bind(this);
     this.onMove = this.onMove.bind(this);
     this.onEnd = this.onEnd.bind(this);
+    this.onClick = this.onClick.bind(this);
 
     this.activePrevSlide = this.activePrevSlide.bind(this);
     this.activeNextSlide = this.activeNextSlide.bind(this);
